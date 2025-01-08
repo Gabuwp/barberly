@@ -17,7 +17,7 @@ export function TextInputField({ control, name, label }: TextInputFieldProps) {
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Input {...field} />
+            <Input placeholder={`Digite o ${label.toLowerCase()}`} {...field} />
           </FormControl>
           <FormMessage />
         </FormItem>

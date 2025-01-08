@@ -6,17 +6,28 @@ import { useToast } from "@/hooks/use-toast";
 import { Form } from "@/components/ui/form";
 import { TextInputField } from "./TextInputField";
 import { ImageUploadField } from "./ImageUploadField";
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-interface FormData {
-  title: string;
-  description: string;
-  image: FileList;
-}
+const formSchema = z.object({
+  title: z.string().min(1, "O título é obrigatório"),
+  description: z.string().min(1, "A descrição é obrigatória"),
+  image: z.instanceof(FileList).refine((files) => files.length > 0, "A imagem é obrigatória"),
+});
+
+type FormData = z.infer<typeof formSchema>;
 
 export function TrendingStyleForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const form = useForm<FormData>();
+  
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+    },
+  });
 
   const onSubmit = async (data: FormData) => {
     try {
