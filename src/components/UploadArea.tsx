@@ -67,6 +67,7 @@ export const UploadArea = () => {
 
     setIsLoading(true);
     try {
+      console.log("Making request to generate-styles function...");
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-styles`,
         {
@@ -80,10 +81,13 @@ export const UploadArea = () => {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to generate suggestions');
+        const errorData = await response.json();
+        console.error("Error response:", errorData);
+        throw new Error(errorData.error || 'Failed to generate suggestions');
       }
 
       const data = await response.json();
+      console.log("Response data:", data);
       
       if (data.error) {
         throw new Error(data.error);
@@ -100,7 +104,7 @@ export const UploadArea = () => {
       toast({
         variant: "destructive",
         title: "Erro!",
-        description: "Erro ao gerar sugestões. Tente novamente.",
+        description: `Erro ao gerar sugestões: ${error.message}`,
       });
     } finally {
       setIsLoading(false);
