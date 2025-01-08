@@ -7,6 +7,7 @@ import { ActionButtons } from "./ImageUploader/ActionButtons";
 
 export const UploadArea = () => {
   const [preview, setPreview] = useState<string | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [userPrompt, setUserPrompt] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -28,13 +29,20 @@ export const UploadArea = () => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
 
-        const { error: uploadError } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('files')
           .upload(fileName, file);
 
         if (uploadError) {
           throw uploadError;
         }
+
+        // Get the public URL of the uploaded image
+        const { data: { publicUrl } } = supabase.storage
+          .from('files')
+          .getPublicUrl(fileName);
+
+        setUploadedImageUrl(publicUrl);
 
         toast({
           title: "Sucesso!",
@@ -56,7 +64,7 @@ export const UploadArea = () => {
   };
 
   const handleDiscover = async () => {
-    if (!preview || !userPrompt) {
+    if (!preview || !userPrompt || !uploadedImageUrl) {
       toast({
         variant: "destructive",
         title: "Erro!",
@@ -69,7 +77,10 @@ export const UploadArea = () => {
     try {
       console.log("Making request to generate-styles function...");
       const { data, error } = await supabase.functions.invoke('generate-styles', {
-        body: { prompt: userPrompt }
+        body: { 
+          prompt: userPrompt,
+          imageUrl: uploadedImageUrl
+        }
       });
 
       if (error) {
@@ -103,6 +114,7 @@ export const UploadArea = () => {
 
   const handleNewImage = () => {
     setPreview(null);
+    setUploadedImageUrl(null);
     setIsUploading(false);
     setSuggestions([]);
     setUserPrompt("");
