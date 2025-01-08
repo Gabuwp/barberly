@@ -58,7 +58,7 @@ serve(async (req) => {
           content: [
             {
               type: "text",
-              text: `Based on this image and description: ${prompt}, suggest a modern and suitable hairstyle.`
+              text: `Based on this image and description: ${prompt}, suggest 5 different modern and suitable hairstyles.`
             },
             {
               type: "image_url",
@@ -69,30 +69,31 @@ serve(async (req) => {
           ]
         }
       ],
-      max_tokens: 500
+      max_tokens: 1000
     })
 
     console.log('OpenAI response received:', response)
 
-    // Generate image based on the suggestion
-    const imageGenerationResponse = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: `Based on the hairstyle suggestion: ${response.choices[0].message.content}, create a realistic and modern hairstyle image. The style should be trendy and suitable for a real person.`,
-      n: 1,
-      size: "1024x1024",
-      quality: "standard",
-    })
+    // Generate 5 images based on the suggestions
+    const suggestions = response.choices[0].message.content.split('\n').filter(Boolean)
+    const imagePromises = suggestions.map(suggestion => 
+      openai.images.generate({
+        model: "dall-e-3",
+        prompt: `Based on the hairstyle suggestion: ${suggestion}, create a realistic and modern hairstyle image. The style should be trendy and suitable for a real person.`,
+        n: 1,
+        size: "1024x1024",
+        quality: "standard",
+      })
+    )
 
-    console.log('Image generation response:', imageGenerationResponse.data)
+    const imageResults = await Promise.all(imagePromises)
+    const imageUrls = imageResults.map(result => result.data[0].url)
 
-    if (!imageGenerationResponse.data || imageGenerationResponse.data.length === 0) {
-      throw new Error('No images generated')
-    }
+    console.log('Generated image URLs:', imageUrls)
 
     return new Response(
       JSON.stringify({ 
-        suggestion: response.choices[0].message.content,
-        imageUrl: imageGenerationResponse.data[0].url 
+        suggestions: imageUrls
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

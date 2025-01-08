@@ -73,7 +73,7 @@ export const useImageUpload = () => {
         throw new Error(data.error);
       }
 
-      setSuggestions(data.imageUrl ? [data.imageUrl] : []);
+      setSuggestions(data.suggestions || []);
 
       toast({
         title: "Sucesso!",
