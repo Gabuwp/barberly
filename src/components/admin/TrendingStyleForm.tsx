@@ -49,7 +49,12 @@ export function TrendingStyleForm() {
         description: "O novo estilo foi adicionado com sucesso.",
       });
 
-      form.reset();
+      form.reset({
+        title: "",
+        description: "",
+        image: undefined as unknown as FileList,
+      });
+      
     } catch (error) {
       console.error("Error adding style:", error);
       toast({
