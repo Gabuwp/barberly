@@ -1,44 +1,36 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StyleCard } from "./StyleCard";
 
 const trendingStyles = [
   {
-    id: 1,
-    name: "Fade Moderno",
-    description: "Corte degradê com acabamento preciso",
-    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e",
+    image: "/placeholder.svg",
+    title: "Degradê Moderno",
+    description: "Linhas limpas e nítidas com transição gradual",
   },
   {
-    id: 2,
-    name: "Barba Clássica",
-    description: "Estilo tradicional bem aparado",
-    image: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
+    image: "/placeholder.svg",
+    title: "Corte Texturizado",
+    description: "Textura natural com um toque contemporâneo",
   },
   {
-    id: 3,
-    name: "Undercut Contemporâneo",
-    description: "Visual moderno e versátil",
-    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158",
+    image: "/placeholder.svg",
+    title: "Pompadour Clássico",
+    description: "Estilo atemporal com volume moderno",
   },
 ];
 
 export const TrendingStyles = () => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {trendingStyles.map((style) => (
-        <Card key={style.id} className="trending-style-card">
-          <CardHeader className="p-0">
-            <img
-              src={style.image}
-              alt={style.name}
-              className="w-full h-48 object-cover"
-            />
-          </CardHeader>
-          <CardContent className="p-4">
-            <CardTitle className="text-lg mb-2">{style.name}</CardTitle>
-            <p className="text-sm text-gray-600">{style.description}</p>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="py-12">
+      <h2 className="mb-8 text-center text-3xl font-semibold">
+        Estilos em Alta
+      </h2>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {trendingStyles.map((style, index) => (
+          <div key={index} className="animate-fade-up" style={{ animationDelay: `${index * 100}ms` }}>
+            <StyleCard {...style} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
