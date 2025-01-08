@@ -68,25 +68,15 @@ export const UploadArea = () => {
     setIsLoading(true);
     try {
       console.log("Making request to generate-styles function...");
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-styles`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ prompt: userPrompt }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('generate-styles', {
+        body: { prompt: userPrompt }
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error response:", errorData);
-        throw new Error(errorData.error || 'Failed to generate suggestions');
+      if (error) {
+        console.error("Error response:", error);
+        throw new Error(error.message || 'Failed to generate suggestions');
       }
 
-      const data = await response.json();
       console.log("Response data:", data);
       
       if (data.error) {
