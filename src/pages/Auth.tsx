@@ -13,7 +13,7 @@ export default function Auth() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session) {
         navigate("/admin");
         toast({
@@ -25,7 +25,12 @@ export default function Auth() {
         setErrorMessage(""); // Clear errors on sign out
       }
       if (event === "USER_UPDATED") {
-        setErrorMessage(""); // Clear errors on user update
+        const { error } = await supabase.auth.getSession();
+        if (error) {
+          setErrorMessage(getErrorMessage(error));
+        } else {
+          setErrorMessage(""); // Clear errors on successful user update
+        }
       }
     });
 
@@ -72,9 +77,6 @@ export default function Auth() {
             appearance={{ theme: ThemeSupa }}
             theme="light"
             providers={[]}
-            onError={(error) => {
-              setErrorMessage(getErrorMessage(error));
-            }}
           />
         </div>
       </div>
