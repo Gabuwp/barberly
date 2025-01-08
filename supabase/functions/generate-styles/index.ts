@@ -12,6 +12,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 async function generateImageWithRetry(openai: OpenAI, prompt: string, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
+      console.log(`Attempting to generate image for prompt: ${prompt} (attempt ${i + 1}/${retries})`);
       const result = await openai.images.generate({
         model: "dall-e-3",
         prompt: `Based on the hairstyle suggestion: ${prompt}, create a realistic and modern hairstyle image. The style should be trendy and suitable for a real person.`,
@@ -19,58 +20,64 @@ async function generateImageWithRetry(openai: OpenAI, prompt: string, retries = 
         size: "1024x1024",
         quality: "standard",
       });
+      console.log('Successfully generated image');
       return result;
     } catch (error) {
+      console.error(`Error generating image (attempt ${i + 1}):`, error);
       if (error.status === 429 && i < retries - 1) {
         console.log(`Rate limit hit, waiting before retry ${i + 1}...`);
-        await sleep(2000); // Wait 2 seconds before retrying
+        await sleep(2000);
         continue;
       }
-      throw error;
+      if (i === retries - 1) {
+        throw error;
+      }
+      await sleep(1000);
     }
   }
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Starting image generation process...')
-    const { prompt, imageUrl } = await req.json()
-    console.log('Received prompt:', prompt)
-    console.log('Received image URL:', imageUrl)
+    console.log('Starting image generation process...');
+    const { prompt, imageUrl } = await req.json();
+    console.log('Received prompt:', prompt);
+    console.log('Received image URL:', imageUrl);
 
     if (!imageUrl) {
-      throw new Error('No image URL provided')
+      throw new Error('No image URL provided');
+    }
+
+    const apiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!apiKey) {
+      console.error('OpenAI API key not found');
+      throw new Error('OpenAI API key not configured');
     }
 
     // Download the image with timeout
-    console.log('Downloading image from URL:', imageUrl)
+    console.log('Downloading image from URL:', imageUrl);
     const imageResponse = await fetch(imageUrl, {
       signal: AbortSignal.timeout(30000)
     }).catch(error => {
-      console.error('Error downloading image:', error)
-      throw new Error(`Failed to download image: ${error.message}`)
-    })
+      console.error('Error downloading image:', error);
+      throw new Error(`Failed to download image: ${error.message}`);
+    });
 
     if (!imageResponse.ok) {
-      throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`)
+      throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`);
     }
 
-    const apiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!apiKey) {
-      console.error('OpenAI API key not found')
-      throw new Error('OpenAI API key not configured')
-    }
-
-    console.log('Initializing OpenAI client...')
+    console.log('Initializing OpenAI client...');
     const openai = new OpenAI({
       apiKey: apiKey
-    })
+    });
 
-    console.log('Making request to OpenAI...')
+    console.log('Making request to OpenAI...');
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -95,44 +102,60 @@ serve(async (req) => {
         }
       ],
       max_tokens: 1000
-    })
+    });
 
-    console.log('OpenAI response received:', response)
+    console.log('OpenAI response received:', response);
 
-    // Generate 5 images based on the suggestions, with delay between requests
-    const suggestions = response.choices[0].message.content.split('\n').filter(Boolean)
+    // Generate images sequentially with proper error handling
+    const suggestions = response.choices[0].message.content.split('\n').filter(Boolean);
     const imageUrls = [];
+    let successCount = 0;
 
     for (const suggestion of suggestions) {
+      if (successCount >= 5) break; // Limit to 5 successful generations
+
       try {
         const result = await generateImageWithRetry(openai, suggestion);
-        imageUrls.push(result.data[0].url);
-        // Add a delay between requests to avoid rate limiting
-        await sleep(1000);
+        if (result?.data?.[0]?.url) {
+          imageUrls.push(result.data[0].url);
+          successCount++;
+          await sleep(1000); // Wait between successful generations
+        }
       } catch (error) {
         console.error('Error generating image:', error);
-        // Continue with other suggestions if one fails
-        continue;
+        continue; // Continue with next suggestion if one fails
       }
     }
 
-    console.log('Generated image URLs:', imageUrls)
+    if (imageUrls.length === 0) {
+      throw new Error('Failed to generate any images');
+    }
 
-    // Return whatever images we successfully generated
+    console.log(`Successfully generated ${imageUrls.length} images`);
     return new Response(
-      JSON.stringify({ 
-        suggestions: imageUrls
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+      JSON.stringify({ suggestions: imageUrls }),
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    );
+
   } catch (error) {
-    console.error('Error in generate-styles function:', error)
+    console.error('Error in generate-styles function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error.message || 'An unexpected error occurred',
         details: error.response?.data || 'No additional details available'
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    )
+      { 
+        status: error.status || 500,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    );
   }
-})
+});
