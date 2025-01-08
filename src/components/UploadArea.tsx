@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import OpenAI from "openai";
 import { UploadInput } from "./ImageUploader/UploadInput";
 import { StyleSuggestions } from "./ImageUploader/StyleSuggestions";
 import { ActionButtons } from "./ImageUploader/ActionButtons";
@@ -68,20 +67,29 @@ export const UploadArea = () => {
 
     setIsLoading(true);
     try {
-      const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-        dangerouslyAllowBrowser: true
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-styles`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ prompt: userPrompt }),
+        }
+      );
 
-      const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: `Based on this description: ${userPrompt}, generate a hairstyle or beard style suggestion. The style should be modern and realistic.`,
-        n: 5,
-        size: "1024x1024",
-      });
+      if (!response.ok) {
+        throw new Error('Failed to generate suggestions');
+      }
 
-      const generatedImages = response.data.map(img => img.url);
-      setSuggestions(generatedImages);
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setSuggestions(data.imageUrl ? [data.imageUrl] : []);
 
       toast({
         title: "Sucesso!",
