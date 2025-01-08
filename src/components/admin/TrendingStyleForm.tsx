@@ -107,14 +107,18 @@ export function TrendingStyleForm() {
           <FormField
             control={form.control}
             name="image"
-            render={({ field: { onChange, ...field } }) => (
+            render={({ field: { onChange, value, ...field } }) => (
               <FormItem>
                 <FormLabel>Imagem</FormLabel>
                 <FormControl>
                   <Input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => onChange(e.target.files)}
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        onChange(e.target.files);
+                      }
+                    }}
                     {...field}
                   />
                 </FormControl>
