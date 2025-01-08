@@ -2,16 +2,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
+import { TextInputField } from "./TextInputField";
+import { ImageUploadField } from "./ImageUploadField";
 
 interface FormData {
   title: string;
@@ -32,19 +26,16 @@ export function TrendingStyleForm() {
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Upload image to storage
       const { error: uploadError } = await supabase.storage
         .from("trending_styles")
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: publicUrlData } = supabase.storage
         .from("trending_styles")
         .getPublicUrl(filePath);
 
-      // Insert record
       const { error: insertError } = await supabase.from("trending_styles").insert({
         title: data.title,
         description: data.description,
@@ -76,56 +67,19 @@ export function TrendingStyleForm() {
       <h2 className="text-lg font-semibold mb-6">Adicionar Novo Estilo</h2>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField
+          <TextInputField
             control={form.control}
             name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Título</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            label="Título"
           />
-
-          <FormField
+          
+          <TextInputField
             control={form.control}
             name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Descrição</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            label="Descrição"
           />
 
-          <FormField
-            control={form.control}
-            name="image"
-            render={({ field: { onChange, value, ...field } }) => (
-              <FormItem>
-                <FormLabel>Imagem</FormLabel>
-                <FormControl>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        onChange(e.target.files);
-                      }
-                    }}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <ImageUploadField control={form.control} />
 
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Adicionando..." : "Adicionar Estilo"}
