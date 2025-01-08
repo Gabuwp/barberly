@@ -21,6 +21,19 @@ serve(async (req) => {
       throw new Error('No image URL provided')
     }
 
+    // Download the image with timeout
+    console.log('Downloading image from URL:', imageUrl)
+    const imageResponse = await fetch(imageUrl, {
+      signal: AbortSignal.timeout(30000) // 30 second timeout
+    }).catch(error => {
+      console.error('Error downloading image:', error)
+      throw new Error(`Failed to download image: ${error.message}`)
+    })
+
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`)
+    }
+
     const apiKey = Deno.env.get('OPENAI_API_KEY')
     if (!apiKey) {
       console.error('OpenAI API key not found')
@@ -62,7 +75,7 @@ serve(async (req) => {
     console.log('OpenAI response received:', response)
 
     // Generate image based on the suggestion
-    const imageResponse = await openai.images.generate({
+    const imageGenerationResponse = await openai.images.generate({
       model: "dall-e-3",
       prompt: `Based on the hairstyle suggestion: ${response.choices[0].message.content}, create a realistic and modern hairstyle image. The style should be trendy and suitable for a real person.`,
       n: 1,
@@ -70,16 +83,16 @@ serve(async (req) => {
       quality: "standard",
     })
 
-    console.log('Image generation response:', imageResponse.data)
+    console.log('Image generation response:', imageGenerationResponse.data)
 
-    if (!imageResponse.data || imageResponse.data.length === 0) {
+    if (!imageGenerationResponse.data || imageGenerationResponse.data.length === 0) {
       throw new Error('No images generated')
     }
 
     return new Response(
       JSON.stringify({ 
         suggestion: response.choices[0].message.content,
-        imageUrl: imageResponse.data[0].url 
+        imageUrl: imageGenerationResponse.data[0].url 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
