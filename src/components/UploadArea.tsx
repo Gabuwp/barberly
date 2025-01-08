@@ -7,6 +7,7 @@ import { ActionButtons } from "./ImageUploader/ActionButtons";
 
 export const UploadArea = () => {
   const [preview, setPreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [userPrompt, setUserPrompt] = useState("");
@@ -14,57 +15,20 @@ export const UploadArea = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleFile = async (file: File) => {
+  const handleFile = (file: File) => {
     if (file.type.startsWith("image/")) {
-      setIsUploading(true);
-      try {
-        // Create preview
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setPreview(e.target?.result as string);
-        };
-        reader.readAsDataURL(file);
-
-        // Upload to Supabase
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${crypto.randomUUID()}.${fileExt}`;
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('files')
-          .upload(fileName, file);
-
-        if (uploadError) {
-          throw uploadError;
-        }
-
-        // Get the public URL of the uploaded image
-        const { data: { publicUrl } } = supabase.storage
-          .from('files')
-          .getPublicUrl(fileName);
-
-        setUploadedImageUrl(publicUrl);
-
-        toast({
-          title: "Sucesso!",
-          description: "Imagem enviada com sucesso",
-        });
-
-        console.log("File uploaded successfully:", fileName);
-      } catch (error) {
-        console.error("Error uploading file:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro!",
-          description: "Erro ao enviar a imagem. Tente novamente.",
-        });
-      } finally {
-        setIsUploading(false);
-      }
+      setSelectedFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleDiscover = async () => {
-    if (!preview || !userPrompt || !uploadedImageUrl) {
+    if (!preview || !userPrompt || !selectedFile) {
       toast({
         variant: "destructive",
         title: "Erro!",
@@ -73,13 +37,35 @@ export const UploadArea = () => {
       return;
     }
 
+    setIsUploading(true);
     setIsLoading(true);
+
     try {
+      // Upload to Supabase
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('files')
+        .upload(fileName, selectedFile);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get the public URL of the uploaded image
+      const { data: { publicUrl } } = supabase.storage
+        .from('files')
+        .getPublicUrl(fileName);
+
+      setUploadedImageUrl(publicUrl);
+
+      // Generate styles
       console.log("Making request to generate-styles function...");
       const { data, error } = await supabase.functions.invoke('generate-styles', {
         body: { 
           prompt: userPrompt,
-          imageUrl: uploadedImageUrl
+          imageUrl: publicUrl
         }
       });
 
@@ -101,19 +87,21 @@ export const UploadArea = () => {
         description: "Sugestões geradas com sucesso!",
       });
     } catch (error) {
-      console.error("Error generating suggestions:", error);
+      console.error("Error:", error);
       toast({
         variant: "destructive",
         title: "Erro!",
-        description: `Erro ao gerar sugestões: ${error.message}`,
+        description: `Erro ao processar a imagem: ${error.message}`,
       });
     } finally {
+      setIsUploading(false);
       setIsLoading(false);
     }
   };
 
   const handleNewImage = () => {
     setPreview(null);
+    setSelectedFile(null);
     setUploadedImageUrl(null);
     setIsUploading(false);
     setSuggestions([]);
